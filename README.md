@@ -46,6 +46,7 @@ It helps in understanding how logs can be analyzed to detect issues and trends.
 ---
 
 ## 📂 Project Structure
+
 logfile-analyzer/
 │
 ├── log_analyzer.py # Main log analysis script
