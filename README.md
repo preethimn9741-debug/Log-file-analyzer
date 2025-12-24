@@ -63,7 +63,7 @@ logfile-analyzer/
 ## ⚙️ Installation Steps
 
 1. Clone the repository:
-```bash
+
 git clone <repository-url>
 cd logfile-analyzer
 
@@ -91,24 +91,39 @@ ERROR,1
 WARNING,1
 
 🧹 Data Handling
+
 Safely handles missing or malformed log lines
+
 Ignores lines that do not match expected format
+
 Produces clean and structured output
 
 🧪 Testing
+
 Automated tests are not currently included.
+
 Recommended future improvement:
+
 Add unit tests using pytest
+
 Test different log formats and edge cases
 
 🎨 Code Quality
+
 Modular and readable code
+
 Easy to extend with new parsing rules
+
 Ready for logging and linting improvements
 
 📌 Conclusion
+
 Log File Analyzer is a simple Python project that demonstrates:
+
 Log parsing and analysis
+
 Data aggregation
+
 CLI-based automation
+
 It is suitable for learning, practice, and portfolio demonstration.
