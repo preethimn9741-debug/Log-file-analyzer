@@ -1,12 +1,11 @@
-mport re
+import re
 import json
 import csv
+import os
+import argparse
 from datetime import datetime
 from collections import defaultdict
-import os
 
-
-os.makedirs("output", exist_ok=True)
 
 
 def parse_text_log(line):
@@ -16,31 +15,48 @@ def parse_text_log(line):
     if not match:
         return None
 
+    try:
+        timestamp = datetime.strptime(match.group(1), "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return None
+
     return {
-    "timestamp": datetime.strptime(match.group(1), "%Y-%m-%d %H:%M:%S"),
-    "level": match.group(2),
-    "service": match.group(3),
-    "host": match.group(4),
-    "message": match.group(5)
-}
+        "timestamp": timestamp,
+        "level": match.group(2),
+        "service": match.group(3),
+        "host": match.group(4),
+        "message": match.group(5)
+    }
 
 
-def read_logs():
+def read_logs(json_path, log_path):
     logs = []
 
-    
-    with open("logs/app.json") as f:
-        json_logs = json.load(f)
-        for log in json_logs:
-            log["timestamp"] = datetime.fromisoformat(log["timestamp"])
-            logs.append(log)
+    # Validate input paths
+    if not json_path and not log_path:
+        raise ValueError("At least one input file must be provided")
 
-    
-    with open("logs/app.log") as f:
-        for line in f:
-            parsed = parse_text_log(line.strip())
-            if parsed:
-                logs.append(parsed)
+    # Read JSON logs
+    if json_path:
+        if not os.path.exists(json_path):
+            print(f"WARNING: {json_path} not found")
+        else:
+            with open(json_path, encoding="utf-8") as f:
+                json_logs = json.load(f)
+                for log in json_logs:
+                    log["timestamp"] = datetime.fromisoformat(log["timestamp"])
+                    logs.append(log)
+
+    # Read text logs
+    if log_path:
+        if not os.path.exists(log_path):
+            print(f"WARNING: {log_path} not found")
+        else:
+            with open(log_path, encoding="utf-8") as f:
+                for line in f:
+                    parsed = parse_text_log(line.strip())
+                    if parsed:
+                        logs.append(parsed)
 
     return logs
 
@@ -60,7 +76,7 @@ def detect_burst_errors(logs):
 
     bursts = []
     for i in range(len(error_times) - 4):
-        if (error_times[i + 4] - error_times[i]).seconds <= 60:
+        if (error_times[i + 4] - error_times[i]).total_seconds() <= 60:
             bursts.append(error_times[i:i + 5])
 
     return bursts
@@ -73,16 +89,22 @@ def detect_long_running_issues(logs):
         if log["level"] == "ERROR":
             error_days[log["message"]].add(log["timestamp"].date())
 
-    return {msg: days for msg, days in error_days.items() if len(days) > 1}
+    return {
+        msg: days
+        for msg, days in error_days.items()
+        if len(days) > 1
+    }
 
 
-def write_daily_summary(logs):
+def write_daily_summary(logs, out_dir):
+    os.makedirs(out_dir, exist_ok=True)
+
     summary = defaultdict(lambda: defaultdict(int))
 
     for log in logs:
         summary[log["timestamp"].date()][log["level"]] += 1
 
-    with open("output/daily_summary.csv", "w", newline="") as f:
+    with open(os.path.join(out_dir, "daily_summary.csv"), "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["date", "level", "count"])
 
@@ -91,14 +113,19 @@ def write_daily_summary(logs):
                 writer.writerow([day, level, count])
 
 
-def write_level_csv(logs):
+def write_level_csv(logs, out_dir):
+    os.makedirs(out_dir, exist_ok=True)
+
+    if not logs:
+        return
+
     files = {}
 
     for log in logs:
         level = log["level"]
 
         if level not in files:
-            f = open(f"output/{level}.csv", "w", newline="")
+            f = open(os.path.join(out_dir, f"{level}.csv"), "w", newline="", encoding="utf-8")
             writer = csv.writer(f)
             writer.writerow(["timestamp", "service", "host", "message"])
             files[level] = (f, writer)
@@ -115,24 +142,35 @@ def write_level_csv(logs):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Log File Analyzer")
+
+    parser.add_argument("--json", help="Path to JSON log file")
+    parser.add_argument("--log", help="Path to text log file")
+    parser.add_argument("--out", default="output", help="Output folder")
+    parser.add_argument("--service", help="Filter by service")
+    parser.add_argument("--host", help="Filter by host")
+
+    args = parser.parse_args()
+
     print("PROGRAM STARTED")
 
-    logs = read_logs()
+    logs = read_logs(args.json, args.log)
     print("Logs loaded:", len(logs))
 
-    for log in logs:
-        print(log)
-
-    logs = filter_logs(logs, service="payment", host="host2")
+    logs = filter_logs(logs, service=args.service, host=args.host)
     print("Logs after filter:", len(logs))
 
-    write_daily_summary(logs)
-    print("daily_summary.csv written")
+    write_daily_summary(logs, args.out)
+    write_level_csv(logs, args.out)
 
-    write_level_csv(logs)
-    print("level CSVs written")
+    bursts = detect_burst_errors(logs)
+    issues = detect_long_running_issues(logs)
 
+    print("Burst errors detected:", len(bursts))
+    print("Long running issues detected:", len(issues))
+    print("CSV files written to:", args.out)
     print("PROGRAM FINISHED")
+
 
 if __name__ == "__main__":
     main()
