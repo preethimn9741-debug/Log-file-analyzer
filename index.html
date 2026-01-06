@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Log File Analyzer</title>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        button {
+            padding: 8px 12px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 12px;
+            margin-top: 15px;
+            max-height: 400px;
+            overflow: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Log File Analyzer</h1>
+
+    <button onclick="loadLogs()">Load Logs</button>
+    <button onclick="loadBurstErrors()">Burst Errors</button>
+    <button onclick="loadLongRunningIssues()">Long Running Issues</button>
+
+    <pre id="output">Click a button to load data...</pre>
+
+    <script>
+        function loadLogs() {
+            fetch("/api/logs")
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById("output").textContent =
+                        JSON.stringify(data, null, 2);
+                });
+        }
+
+        function loadBurstErrors() {
+            fetch("/api/burst-errors")
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById("output").textContent =
+                        JSON.stringify(data, null, 2);
+                });
+        }
+
+        function loadLongRunningIssues() {
+            fetch("/api/long-running-issues")
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById("output").textContent =
+                        JSON.stringify(data, null, 2);
+                });
+        }
+    </script>
+
+</body>
+</html>
